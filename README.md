@@ -10,8 +10,8 @@
 
 | Platform | Download | Size |
 |----------|----------|------|
-| macOS (Intel/Apple Silicon) | [PGShift_0.1.0_x64.dmg](https://github.com/ervsoft/sqlequalizer/releases/download/v0.1.0/PGShift_0.1.0_x64.dmg) | ~5.6 MB |
-| Windows x64 | [PGShift_0.1.0_x64-setup.exe](https://github.com/ervsoft/sqlequalizer/releases/download/v0.1.0/PGShift_0.1.0_x64-setup.exe) | ~8 MB |
+| macOS (Intel/Apple Silicon) | [PGShift_0.1.0_x64.dmg](https://github.com/ervsoft/pgshift/releases/download/v0.1.0/PGShift_0.1.0_x64.dmg) | ~5.6 MB |
+| Windows x64 | [PGShift_0.1.0_x64-setup.exe](https://github.com/ervsoft/pgshift/releases/download/v0.1.0/PGShift_0.1.0_x64-setup.exe) | ~8 MB |
 
 > **Note**: Windows builds are automatically generated via GitHub Actions when a new version tag is pushed.
 

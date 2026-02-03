@@ -163,7 +163,7 @@ if [[ $COMMIT_CHOICE =~ ^[Yy]$ ]]; then
         git push origin main --tags
         echo -e "${GREEN}✓ Pushed to remote with tags${NC}"
         echo -e "${YELLOW}🚀 GitHub Actions will now build Windows EXE and macOS DMG automatically!${NC}"
-        echo -e "${BLUE}   Check: https://github.com/ervsoft/sqlequalizer/actions${NC}"
+        echo -e "${BLUE}   Check: https://github.com/ervsoft/pgshift/actions${NC}"
     fi
 fi
 
@@ -177,4 +177,4 @@ echo "  1. GitHub Actions will build macOS DMG and Windows EXE"
 echo "  2. Go to GitHub Releases to download the builds"
 echo "  3. Update download links in README.md if needed"
 echo ""
-echo "  Release URL: https://github.com/ervsoft/sqlequalizer/releases/tag/v$NEW_VERSION"
+echo "  Release URL: https://github.com/ervsoft/pgshift/releases/tag/v$NEW_VERSION"
