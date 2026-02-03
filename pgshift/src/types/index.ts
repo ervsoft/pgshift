@@ -60,6 +60,18 @@ export interface DiffReport {
   generated_at: string;
 }
 
+// Single database connection info
+export interface DatabaseConnection {
+  id: string;
+  name: string;
+  connectionString: string;
+  connected: boolean;
+  testing: boolean;
+  schema?: SchemaModel | null;
+  dbInfo?: DatabaseInfo | null;
+}
+
+// Legacy ConnectionState for backward compatibility
 export interface ConnectionState {
   source: string;
   target: string;
@@ -73,10 +85,18 @@ export interface ConnectionState {
   targetDbInfo?: DatabaseInfo | null;
 }
 
+// New multi-connection state
+export interface MultiConnectionState {
+  sources: DatabaseConnection[];
+  targets: DatabaseConnection[];
+}
+
 export interface AppState {
   connections: ConnectionState;
+  multiConnections: MultiConnectionState;
   sourceSchema: SchemaModel | null;
   targetSchema: SchemaModel | null;
+  mergedSchema: SchemaModel | null; // For multi-source merge
   diffReport: DiffReport | null;
   selectedDiffItem: DiffItem | null;
   migrationPath: string | null;
@@ -159,4 +179,20 @@ export interface SavedConnection {
     password: string;
   };
   createdAt: string;
+}
+
+// Multi-target migration result
+export interface MigrationApplyResult {
+  connectionId: string;
+  connectionName: string;
+  success: boolean;
+  error?: string;
+  logs: string[];
+}
+
+// Schema merge options
+export interface MergeOptions {
+  conflictResolution: 'first' | 'last' | 'error';
+  includeAllTables: boolean;
+  includeAllEnums: boolean;
 }

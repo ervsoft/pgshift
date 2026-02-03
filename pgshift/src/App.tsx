@@ -6,7 +6,7 @@ import ApplyPage from './pages/ApplyPage';
 import BrowserPage from './pages/BrowserPage';
 import VersionsPage from './pages/VersionsPage';
 import MigrationsPage from './pages/MigrationsPage';
-import { AppState, ConnectionState, SchemaModel, DiffReport, DiffItem } from './types';
+import { AppState, ConnectionState, SchemaModel, DiffReport, DiffItem, MultiConnectionState, DatabaseConnection } from './types';
 import './App.css';
 
 const initialConnectionState: ConnectionState = {
@@ -18,11 +18,18 @@ const initialConnectionState: ConnectionState = {
   targetTesting: false,
 };
 
+const initialMultiConnectionState: MultiConnectionState = {
+  sources: [],
+  targets: [],
+};
+
 function App() {
   const [state, setState] = useState<AppState>({
     connections: initialConnectionState,
+    multiConnections: initialMultiConnectionState,
     sourceSchema: null,
     targetSchema: null,
+    mergedSchema: null,
     diffReport: null,
     selectedDiffItem: null,
     migrationPath: null,
@@ -41,6 +48,74 @@ function App() {
 
   const setTargetSchema = useCallback((schema: SchemaModel | null) => {
     setState((prev) => ({ ...prev, targetSchema: schema }));
+  }, []);
+
+  const setMergedSchema = useCallback((schema: SchemaModel | null) => {
+    setState((prev) => ({ ...prev, mergedSchema: schema }));
+  }, []);
+
+  const addSourceConnection = useCallback((connection: DatabaseConnection) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        sources: [...prev.multiConnections.sources, connection],
+      },
+    }));
+  }, []);
+
+  const removeSourceConnection = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        sources: prev.multiConnections.sources.filter((c) => c.id !== id),
+      },
+    }));
+  }, []);
+
+  const updateSourceConnection = useCallback((id: string, updates: Partial<DatabaseConnection>) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        sources: prev.multiConnections.sources.map((c) =>
+          c.id === id ? { ...c, ...updates } : c
+        ),
+      },
+    }));
+  }, []);
+
+  const addTargetConnection = useCallback((connection: DatabaseConnection) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        targets: [...prev.multiConnections.targets, connection],
+      },
+    }));
+  }, []);
+
+  const removeTargetConnection = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        targets: prev.multiConnections.targets.filter((c) => c.id !== id),
+      },
+    }));
+  }, []);
+
+  const updateTargetConnection = useCallback((id: string, updates: Partial<DatabaseConnection>) => {
+    setState((prev) => ({
+      ...prev,
+      multiConnections: {
+        ...prev.multiConnections,
+        targets: prev.multiConnections.targets.map((c) =>
+          c.id === id ? { ...c, ...updates } : c
+        ),
+      },
+    }));
   }, []);
 
   const setDiffReport = useCallback((report: DiffReport | null) => {
@@ -114,6 +189,13 @@ function App() {
                 <ConnectionsPage
                   connections={state.connections}
                   updateConnections={updateConnections}
+                  multiConnections={state.multiConnections}
+                  addSourceConnection={addSourceConnection}
+                  removeSourceConnection={removeSourceConnection}
+                  updateSourceConnection={updateSourceConnection}
+                  addTargetConnection={addTargetConnection}
+                  removeTargetConnection={removeTargetConnection}
+                  updateTargetConnection={updateTargetConnection}
                   setError={setError}
                   setSourceSchema={setSourceSchema}
                   setTargetSchema={setTargetSchema}
@@ -134,12 +216,15 @@ function App() {
               element={
                 <ComparePage
                   connections={state.connections}
+                  multiConnections={state.multiConnections}
                   sourceSchema={state.sourceSchema}
                   targetSchema={state.targetSchema}
+                  mergedSchema={state.mergedSchema}
                   diffReport={state.diffReport}
                   selectedDiffItem={state.selectedDiffItem}
                   setSourceSchema={setSourceSchema}
                   setTargetSchema={setTargetSchema}
+                  setMergedSchema={setMergedSchema}
                   setDiffReport={setDiffReport}
                   setSelectedDiffItem={setSelectedDiffItem}
                   setMigrationPath={setMigrationPath}
@@ -173,6 +258,7 @@ function App() {
               element={
                 <ApplyPage
                   connections={state.connections}
+                  multiConnections={state.multiConnections}
                   migrationPath={state.migrationPath}
                   logs={state.logs}
                   addLog={addLog}
@@ -180,6 +266,7 @@ function App() {
                   setError={setError}
                   loading={state.loading}
                   setLoading={setLoading}
+                  updateTargetConnection={updateTargetConnection}
                 />
               }
             />

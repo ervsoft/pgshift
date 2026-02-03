@@ -1,1 +1,33 @@
 /SPEC.md
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+pgshift/dist/
+pgshift/src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Keep release binaries for distribution
+!*.dmg
+!*.exe

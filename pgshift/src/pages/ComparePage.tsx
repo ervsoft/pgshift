@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ConnectionState, SchemaModel, DiffReport, DiffItem } from '../types';
+import { ConnectionState, SchemaModel, DiffReport, DiffItem, MultiConnectionState } from '../types';
 import DiffTree from '../components/DiffTree';
 import DiffDetails from '../components/DiffDetails';
 import SqlPreview from '../components/SqlPreview';
 
 interface ComparePageProps {
   connections: ConnectionState;
+  multiConnections: MultiConnectionState;
   sourceSchema: SchemaModel | null;
   targetSchema: SchemaModel | null;
+  mergedSchema: SchemaModel | null;
   diffReport: DiffReport | null;
   selectedDiffItem: DiffItem | null;
   setSourceSchema: (schema: SchemaModel | null) => void;
   setTargetSchema: (schema: SchemaModel | null) => void;
+  setMergedSchema: (schema: SchemaModel | null) => void;
   setDiffReport: (report: DiffReport | null) => void;
   setSelectedDiffItem: (item: DiffItem | null) => void;
   setMigrationPath: (path: string | null) => void;
@@ -49,12 +52,15 @@ function parseDbDetails(connStr: string): { host: string; port: string; database
 
 function ComparePage({
   connections,
+  multiConnections,
   sourceSchema,
   targetSchema,
+  mergedSchema,
   diffReport,
   selectedDiffItem,
   setSourceSchema,
   setTargetSchema,
+  setMergedSchema,
   setDiffReport,
   setSelectedDiffItem,
   setMigrationPath,
@@ -65,8 +71,111 @@ function ComparePage({
 }: ComparePageProps) {
   const [migrationName, setMigrationName] = useState('');
   const [generatingMigration, setGeneratingMigration] = useState(false);
+  const [compareMode, setCompareMode] = useState<'single' | 'multi'>('single');
 
+  // Check if we have multi-connections
+  const hasMultiSources = multiConnections.sources.filter(c => c.connected).length > 0;
+  const hasMultiTargets = multiConnections.targets.filter(c => c.connected).length > 0;
+  
   const canCompare = connections.sourceConnected && connections.targetConnected;
+  const canMultiCompare = hasMultiSources && (hasMultiTargets || connections.targetConnected);
+
+  // Merge multiple source schemas
+  const mergeSchemas = async () => {
+    const connectedSources = multiConnections.sources.filter(c => c.connected && c.schema);
+    if (connectedSources.length === 0) {
+      setError('No connected sources with schemas');
+      return null;
+    }
+
+    if (connectedSources.length === 1) {
+      return connectedSources[0].schema;
+    }
+
+    // Simple merge: combine all tables and enums
+    const merged: SchemaModel = {
+      tables: [],
+      enums: [],
+      indexes: [],
+    };
+
+    const tableMap = new Map<string, SchemaModel['tables'][0]>();
+    const enumMap = new Map<string, SchemaModel['enums'][0]>();
+    const indexMap = new Map<string, SchemaModel['indexes'][0]>();
+
+    for (const source of connectedSources) {
+      if (!source.schema) continue;
+      
+      for (const table of source.schema.tables) {
+        if (!tableMap.has(table.name)) {
+          tableMap.set(table.name, table);
+        }
+        // If table exists, we keep the first one (could add conflict resolution)
+      }
+      
+      for (const enumType of source.schema.enums) {
+        if (!enumMap.has(enumType.name)) {
+          enumMap.set(enumType.name, enumType);
+        }
+      }
+      
+      for (const index of source.schema.indexes || []) {
+        if (!indexMap.has(index.name)) {
+          indexMap.set(index.name, index);
+        }
+      }
+    }
+
+    merged.tables = Array.from(tableMap.values());
+    merged.enums = Array.from(enumMap.values());
+    merged.indexes = Array.from(indexMap.values());
+    
+    return merged;
+  };
+
+  const runMultiComparison = async () => {
+    if (!canMultiCompare) {
+      setError('Please add and connect source databases in Multi Mode first.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setDiffReport(null);
+    setSelectedDiffItem(null);
+
+    try {
+      addLog('Merging source schemas...');
+      const merged = await mergeSchemas();
+      if (!merged) {
+        throw new Error('Failed to merge schemas');
+      }
+      setMergedSchema(merged);
+      addLog(`Merged schema: ${merged.tables.length} tables, ${merged.enums.length} enums`);
+
+      // Use first target or single target
+      const targetConnStr = hasMultiTargets 
+        ? multiConnections.targets[0].connectionString 
+        : connections.target;
+      
+      addLog('Introspecting target database...');
+      const target = await invoke<SchemaModel>('introspect', {
+        connectionString: targetConnStr,
+      });
+      setTargetSchema(target);
+      addLog(`Found ${target.tables.length} tables in target`);
+
+      addLog('Computing schema differences...');
+      const report = await invoke<DiffReport>('diff', { source: merged, target });
+      setDiffReport(report);
+      addLog(`Found ${report.items.length} differences`);
+
+    } catch (err) {
+      setError(`Multi-comparison failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const runComparison = async () => {
     if (!canCompare) {
@@ -161,35 +270,105 @@ function ComparePage({
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Schema Comparison</h2>
-        <p>Compare source and target schemas to generate migrations.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2>Schema Comparison</h2>
+            <p>Compare source and target schemas to generate migrations.</p>
+          </div>
+          {(hasMultiSources || hasMultiTargets) && (
+            <div className="input-mode-toggle">
+              <button 
+                className={`toggle-btn ${compareMode === 'single' ? 'active' : ''}`}
+                onClick={() => setCompareMode('single')}
+              >
+                Single
+              </button>
+              <button 
+                className={`toggle-btn ${compareMode === 'multi' ? 'active' : ''}`}
+                onClick={() => setCompareMode('multi')}
+              >
+                Multi-Source
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="action-bar">
-        <button
-          className="btn btn-primary"
-          onClick={runComparison}
-          disabled={loading || !canCompare}
-        >
-          {loading ? (
-            <>
-              <span className="spinner"></span>
-              Comparing...
-            </>
-          ) : (
-            '🔍 Compare Schemas'
-          )}
-        </button>
+      {/* Multi-source info banner */}
+      {compareMode === 'multi' && hasMultiSources && (
+        <div className="card" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>🔀</span>
+            <div>
+              <h4 style={{ margin: 0 }}>Multi-Source Comparison</h4>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                {multiConnections.sources.filter(c => c.connected).length} source databases will be merged → 
+                {hasMultiTargets ? ` ${multiConnections.targets.filter(c => c.connected).length} targets` : ' 1 target'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {!canCompare && (
+      <div className="action-bar">
+        {compareMode === 'single' ? (
+          <button
+            className="btn btn-primary"
+            onClick={runComparison}
+            disabled={loading || !canCompare}
+          >
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Comparing...
+              </>
+            ) : (
+              '🔍 Compare Schemas'
+            )}
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            onClick={runMultiComparison}
+            disabled={loading || !canMultiCompare}
+          >
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Merging & Comparing...
+              </>
+            ) : (
+              '🔀 Merge & Compare'
+            )}
+          </button>
+        )}
+
+        {compareMode === 'single' && !canCompare && (
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', alignSelf: 'center' }}>
             ⚠️ Connect to both databases on the Connections page first
           </span>
         )}
+        
+        {compareMode === 'multi' && !canMultiCompare && (
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', alignSelf: 'center' }}>
+            ⚠️ Add source databases in Multi Mode on the Connections page first
+          </span>
+        )}
       </div>
 
+      {/* Show merged schema info when using multi-mode */}
+      {compareMode === 'multi' && mergedSchema && (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h4 style={{ margin: '0 0 0.5rem 0' }}>📊 Merged Source Schema</h4>
+          <div style={{ display: 'flex', gap: '2rem', fontSize: '0.875rem' }}>
+            <div><strong>{mergedSchema.tables.length}</strong> tables</div>
+            <div><strong>{mergedSchema.enums.length}</strong> enums</div>
+          </div>
+        </div>
+      )}
+
       {/* Show connection info when connected but not yet compared */}
-      {canCompare && !diffReport && !loading && (
+      {compareMode === 'single' && canCompare && !diffReport && !loading && (
         <div className="connections-preview card" style={{ marginBottom: '1.5rem' }}>
           <h3 className="card-title" style={{ marginBottom: '1rem' }}>🔗 Connected Databases</h3>
           <div className="db-comparison">

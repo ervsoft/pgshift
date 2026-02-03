@@ -1336,3 +1336,51 @@ body {
   }
 }
 
+/* Multi-Connection Mode Styles */
+.multi-connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.multi-connection-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.multi-conn-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.multi-conn-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.multi-conn-info {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-left: 1.25rem;
+}
+
+.multi-conn-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.multi-conn-actions .btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+

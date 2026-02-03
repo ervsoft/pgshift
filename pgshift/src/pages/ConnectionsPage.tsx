@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ConnectionState, SchemaModel, DatabaseInfo } from '../types';
+import { ConnectionState, SchemaModel, DatabaseInfo, MultiConnectionState, DatabaseConnection } from '../types';
 
 interface ConnectionFields {
   host: string;
@@ -20,6 +20,13 @@ interface SavedConnection {
 interface ConnectionsPageProps {
   connections: ConnectionState;
   updateConnections: (connections: ConnectionState) => void;
+  multiConnections: MultiConnectionState;
+  addSourceConnection: (connection: DatabaseConnection) => void;
+  removeSourceConnection: (id: string) => void;
+  updateSourceConnection: (id: string, updates: Partial<DatabaseConnection>) => void;
+  addTargetConnection: (connection: DatabaseConnection) => void;
+  removeTargetConnection: (id: string) => void;
+  updateTargetConnection: (id: string, updates: Partial<DatabaseConnection>) => void;
   setError: (error: string | null) => void;
   setSourceSchema: (schema: SchemaModel | null) => void;
   setTargetSchema: (schema: SchemaModel | null) => void;
@@ -68,9 +75,32 @@ function generateConnectionName(fields: ConnectionFields): string {
   return `${fields.database}@${fields.host}`;
 }
 
-function ConnectionsPage({ connections, updateConnections, setError, setSourceSchema, setTargetSchema }: ConnectionsPageProps) {
+function ConnectionsPage({ 
+  connections, 
+  updateConnections, 
+  multiConnections,
+  addSourceConnection,
+  removeSourceConnection,
+  updateSourceConnection,
+  addTargetConnection,
+  removeTargetConnection,
+  updateTargetConnection,
+  setError, 
+  setSourceSchema, 
+  setTargetSchema 
+}: ConnectionsPageProps) {
   const [sourceMode, setSourceMode] = useState<InputMode>('fields');
   const [targetMode, setTargetMode] = useState<InputMode>('fields');
+  
+  // Multi-connection mode toggle
+  const [multiMode, setMultiMode] = useState(false);
+  
+  // New connection form for multi-mode
+  const [newMultiConn, setNewMultiConn] = useState<ConnectionFields>({
+    host: 'localhost', port: '5432', database: '', user: '', password: ''
+  });
+  const [newMultiConnName, setNewMultiConnName] = useState('');
+  const [addingTo, setAddingTo] = useState<'source' | 'target' | null>(null);
   
   const [localSource, setLocalSource] = useState(connections.source);
   const [localTarget, setLocalTarget] = useState(connections.target);
@@ -167,6 +197,118 @@ function ConnectionsPage({ connections, updateConnections, setError, setSourceSc
     }
   };
 
+  // Add connection to multi-mode list
+  const addMultiConnection = async (type: 'source' | 'target') => {
+    const connStr = buildConnectionString(newMultiConn);
+    if (!connStr) return;
+    
+    const name = newMultiConnName.trim() || generateConnectionName(newMultiConn);
+    const newConn: DatabaseConnection = {
+      id: `${type}-${Date.now()}`,
+      name,
+      connectionString: connStr,
+      connected: false,
+      testing: true,
+    };
+    
+    if (type === 'source') {
+      addSourceConnection(newConn);
+    } else {
+      addTargetConnection(newConn);
+    }
+    
+    // Test the connection
+    try {
+      await invoke<boolean>('test_connection', { connectionString: connStr });
+      const [schema, dbInfo] = await Promise.all([
+        invoke<SchemaModel>('introspect', { connectionString: connStr }),
+        invoke<DatabaseInfo>('get_database_info', { connectionString: connStr }),
+      ]);
+      
+      if (type === 'source') {
+        updateSourceConnection(newConn.id, { connected: true, testing: false, schema, dbInfo });
+      } else {
+        updateTargetConnection(newConn.id, { connected: true, testing: false, schema, dbInfo });
+      }
+    } catch (err) {
+      if (type === 'source') {
+        updateSourceConnection(newConn.id, { connected: false, testing: false });
+      } else {
+        updateTargetConnection(newConn.id, { connected: false, testing: false });
+      }
+      setError(`Connection failed: ${err}`);
+    }
+    
+    // Reset form
+    setNewMultiConn({ host: 'localhost', port: '5432', database: '', user: '', password: '' });
+    setNewMultiConnName('');
+    setAddingTo(null);
+  };
+
+  // Test a multi-connection
+  const testMultiConnection = async (id: string, type: 'source' | 'target') => {
+    const conn = type === 'source' 
+      ? multiConnections.sources.find(c => c.id === id)
+      : multiConnections.targets.find(c => c.id === id);
+    
+    if (!conn) return;
+    
+    const updateFn = type === 'source' ? updateSourceConnection : updateTargetConnection;
+    updateFn(id, { testing: true });
+    
+    try {
+      await invoke<boolean>('test_connection', { connectionString: conn.connectionString });
+      const [schema, dbInfo] = await Promise.all([
+        invoke<SchemaModel>('introspect', { connectionString: conn.connectionString }),
+        invoke<DatabaseInfo>('get_database_info', { connectionString: conn.connectionString }),
+      ]);
+      updateFn(id, { connected: true, testing: false, schema, dbInfo });
+    } catch (err) {
+      updateFn(id, { connected: false, testing: false });
+      setError(`Connection failed: ${err}`);
+    }
+  };
+
+  // Load saved connection to multi-mode
+  const loadToMulti = async (conn: SavedConnection, type: 'source' | 'target') => {
+    const connStr = buildConnectionString(conn.fields);
+    const newConn: DatabaseConnection = {
+      id: `${type}-${Date.now()}`,
+      name: conn.name,
+      connectionString: connStr,
+      connected: false,
+      testing: true,
+    };
+    
+    if (type === 'source') {
+      addSourceConnection(newConn);
+    } else {
+      addTargetConnection(newConn);
+    }
+    
+    // Test connection
+    try {
+      await invoke<boolean>('test_connection', { connectionString: connStr });
+      const [schema, dbInfo] = await Promise.all([
+        invoke<SchemaModel>('introspect', { connectionString: connStr }),
+        invoke<DatabaseInfo>('get_database_info', { connectionString: connStr }),
+      ]);
+      
+      if (type === 'source') {
+        updateSourceConnection(newConn.id, { connected: true, testing: false, schema, dbInfo });
+      } else {
+        updateTargetConnection(newConn.id, { connected: true, testing: false, schema, dbInfo });
+      }
+    } catch (err) {
+      if (type === 'source') {
+        updateSourceConnection(newConn.id, { connected: false, testing: false });
+      } else {
+        updateTargetConnection(newConn.id, { connected: false, testing: false });
+      }
+      setError(`Connection failed: ${err}`);
+    }
+  };
+
   const swapConnections = () => {
     // Swap fields
     const tempFields = { ...sourceFields };
@@ -246,11 +388,272 @@ function ConnectionsPage({ connections, updateConnections, setError, setSourceSc
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Database Connections</h2>
-        <p>Configure your source (desired state) and target (current state) PostgreSQL connections.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2>Database Connections</h2>
+            <p>Configure your source (desired state) and target (current state) PostgreSQL connections.</p>
+          </div>
+          <div className="input-mode-toggle">
+            <button 
+              className={`toggle-btn ${!multiMode ? 'active' : ''}`}
+              onClick={() => setMultiMode(false)}
+            >
+              Single Mode
+            </button>
+            <button 
+              className={`toggle-btn ${multiMode ? 'active' : ''}`}
+              onClick={() => setMultiMode(true)}
+            >
+              Multi Mode
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Saved Connections */}
+      {/* Multi-mode UI */}
+      {multiMode && (
+        <>
+          <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>🔀</span>
+              <div>
+                <h4 style={{ margin: 0 }}>Multi-Connection Mode</h4>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  Add multiple sources to merge schemas, or multiple targets to deploy migrations to all.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            {/* Multi Sources */}
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">📤 Source Databases ({multiConnections.sources.length})</h3>
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setAddingTo('source')}
+                >
+                  + Add Source
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                Multiple sources will be merged into a unified schema.
+              </p>
+              
+              {multiConnections.sources.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  No source connections added yet
+                </div>
+              ) : (
+                <div className="multi-connection-list">
+                  {multiConnections.sources.map((conn) => (
+                    <div key={conn.id} className="multi-connection-item">
+                      <div className="multi-conn-header">
+                        <span className={`status-dot ${conn.testing ? 'testing' : conn.connected ? 'connected' : 'disconnected'}`}></span>
+                        <span className="multi-conn-name">{conn.name}</span>
+                        {conn.testing && <span className="spinner" style={{ width: 14, height: 14 }}></span>}
+                      </div>
+                      {conn.connected && conn.dbInfo && (
+                        <div className="multi-conn-info">
+                          <span>{conn.dbInfo.table_count} tables</span>
+                          <span>•</span>
+                          <span>{conn.dbInfo.database_size}</span>
+                        </div>
+                      )}
+                      <div className="multi-conn-actions">
+                        <button 
+                          className="btn btn-sm"
+                          onClick={() => testMultiConnection(conn.id, 'source')}
+                          disabled={conn.testing}
+                        >
+                          🔄
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => removeSourceConnection(conn.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Multi Targets */}
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">📥 Target Databases ({multiConnections.targets.length})</h3>
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setAddingTo('target')}
+                >
+                  + Add Target
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                Migrations will be applied to all target databases.
+              </p>
+              
+              {multiConnections.targets.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  No target connections added yet
+                </div>
+              ) : (
+                <div className="multi-connection-list">
+                  {multiConnections.targets.map((conn) => (
+                    <div key={conn.id} className="multi-connection-item">
+                      <div className="multi-conn-header">
+                        <span className={`status-dot ${conn.testing ? 'testing' : conn.connected ? 'connected' : 'disconnected'}`}></span>
+                        <span className="multi-conn-name">{conn.name}</span>
+                        {conn.testing && <span className="spinner" style={{ width: 14, height: 14 }}></span>}
+                      </div>
+                      {conn.connected && conn.dbInfo && (
+                        <div className="multi-conn-info">
+                          <span>{conn.dbInfo.table_count} tables</span>
+                          <span>•</span>
+                          <span>{conn.dbInfo.database_size}</span>
+                        </div>
+                      )}
+                      <div className="multi-conn-actions">
+                        <button 
+                          className="btn btn-sm"
+                          onClick={() => testMultiConnection(conn.id, 'target')}
+                          disabled={conn.testing}
+                        >
+                          🔄
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => removeTargetConnection(conn.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Add from saved connections in multi mode */}
+          {savedConnections.length > 0 && (
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 className="card-title" style={{ marginBottom: '1rem' }}>💾 Quick Add from Saved</h3>
+              <div className="saved-connections-list">
+                {savedConnections.map((conn) => (
+                  <div key={conn.id} className="saved-connection-item">
+                    <div className="saved-connection-info">
+                      <span className="saved-connection-name">{conn.name}</span>
+                      <span className="saved-connection-details">
+                        {conn.fields.user}@{conn.fields.host}:{conn.fields.port}/{conn.fields.database}
+                      </span>
+                    </div>
+                    <div className="saved-connection-actions">
+                      <button 
+                        className="btn btn-sm" 
+                        onClick={() => loadToMulti(conn, 'source')}
+                      >
+                        📤 Add Source
+                      </button>
+                      <button 
+                        className="btn btn-sm" 
+                        onClick={() => loadToMulti(conn, 'target')}
+                      >
+                        📥 Add Target
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add Connection Modal for Multi Mode */}
+          {addingTo && (
+            <div className="modal-overlay" onClick={() => setAddingTo(null)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h3>{addingTo === 'source' ? '📤 Add Source' : '📥 Add Target'} Connection</h3>
+                <div className="form-group">
+                  <label>Connection Name</label>
+                  <input
+                    type="text"
+                    value={newMultiConnName}
+                    onChange={(e) => setNewMultiConnName(e.target.value)}
+                    placeholder="My Database"
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group" style={{ flex: 2 }}>
+                    <label>Host</label>
+                    <input
+                      type="text"
+                      value={newMultiConn.host}
+                      onChange={(e) => setNewMultiConn({ ...newMultiConn, host: e.target.value })}
+                      placeholder="localhost"
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Port</label>
+                    <input
+                      type="text"
+                      value={newMultiConn.port}
+                      onChange={(e) => setNewMultiConn({ ...newMultiConn, port: e.target.value })}
+                      placeholder="5432"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Database</label>
+                  <input
+                    type="text"
+                    value={newMultiConn.database}
+                    onChange={(e) => setNewMultiConn({ ...newMultiConn, database: e.target.value })}
+                    placeholder="myapp"
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>User</label>
+                    <input
+                      type="text"
+                      value={newMultiConn.user}
+                      onChange={(e) => setNewMultiConn({ ...newMultiConn, user: e.target.value })}
+                      placeholder="postgres"
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Password</label>
+                    <input
+                      type="password"
+                      value={newMultiConn.password}
+                      onChange={(e) => setNewMultiConn({ ...newMultiConn, password: e.target.value })}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setAddingTo(null)}>Cancel</button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => addMultiConnection(addingTo)}
+                    disabled={!newMultiConn.database || !newMultiConn.user}
+                  >
+                    Add & Test
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Single mode UI (existing) */}
+      {!multiMode && (
+        <>
       {savedConnections.length > 0 && (
         <div className="card saved-connections" style={{ marginBottom: '1.5rem' }}>
           <h3 className="card-title" style={{ marginBottom: '1rem' }}>💾 Saved Connections</h3>
@@ -644,6 +1047,8 @@ function ConnectionsPage({ connections, updateConnections, setError, setSourceSc
           </div>
         </div>
       )}
+    </>
+    )}
     </div>
   );
 }
