@@ -1,0 +1,121 @@
+{
+  "name": "adada",
+  "timestamp": "20260203105145",
+  "generated_at": "2026-02-03T10:51:45.950871+00:00",
+  "items_count": 16,
+  "has_dangerous": false,
+  "items": [
+    {
+      "id": "531d9483-e5c2-47a8-8b0e-c01da74295dc",
+      "kind": "added",
+      "object_type": "enum",
+      "object_name": "ApprovalStatus",
+      "dangerous": false
+    },
+    {
+      "id": "83dfd174-fb3e-4163-b747-8f0a1c6a50fa",
+      "kind": "modified",
+      "object_type": "enum",
+      "object_name": "Role",
+      "dangerous": false
+    },
+    {
+      "id": "0d5f926b-6ab0-4eee-ae1d-310f9da0db52",
+      "kind": "added",
+      "object_type": "table",
+      "object_name": "ProjectNeighborhood",
+      "dangerous": false
+    },
+    {
+      "id": "b9e272ec-a6eb-421a-872f-937b6bbb4f58",
+      "kind": "added",
+      "object_type": "table",
+      "object_name": "neighborhoods",
+      "dangerous": false
+    },
+    {
+      "id": "781a496e-6939-4711-b7e6-25f56661f98d",
+      "kind": "added",
+      "object_type": "table",
+      "object_name": "project_attachments",
+      "dangerous": false
+    },
+    {
+      "id": "ab07c706-bc37-43b2-8506-56197bdf14db",
+      "kind": "added",
+      "object_type": "table",
+      "object_name": "project_logs",
+      "dangerous": false
+    },
+    {
+      "id": "62e092a1-7d3b-44f9-ba0c-aca6e23bf0f3",
+      "kind": "added",
+      "object_type": "table",
+      "object_name": "target_groups",
+      "dangerous": false
+    },
+    {
+      "id": "3ef5329e-1fdc-4a6c-b882-9bf0fe530d60",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Project.approvalStatus",
+      "dangerous": false
+    },
+    {
+      "id": "2dd8ec0a-b20b-4c64-a1ab-b318c664c522",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Project.approvedById",
+      "dangerous": false
+    },
+    {
+      "id": "a1bf1408-0688-4f08-932e-4304209c0772",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Project.approvedAt",
+      "dangerous": false
+    },
+    {
+      "id": "1726b8aa-4a8b-46ca-902e-cbf472f23a54",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Project.rejectionReason",
+      "dangerous": false
+    },
+    {
+      "id": "c8c99f11-842e-4ca6-a9a5-374e8a5a97e4",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Project.isPublic",
+      "dangerous": false
+    },
+    {
+      "id": "433b3302-39c2-4ee9-908b-df0a6778168a",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "Stakeholder.category",
+      "dangerous": false
+    },
+    {
+      "id": "b872ebbc-dbb4-496b-bdbb-82db71dca816",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "User.districtId",
+      "dangerous": false
+    },
+    {
+      "id": "6520b8fb-260e-4f27-88d1-cdfdd3cf70b2",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "User.password",
+      "dangerous": false
+    },
+    {
+      "id": "ce39c783-ae3a-4dee-bae5-472df5df72a6",
+      "kind": "added",
+      "object_type": "column",
+      "object_name": "User.mustChangePassword",
+      "dangerous": false
+    }
+  ]
+}

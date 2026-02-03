@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "tasks": [],
+  "columns": [
+    "Backlog",
+    "To Do",
+    "In Progress",
+    "Review",
+    "Done"
+  ]
+}
