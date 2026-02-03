@@ -3,9 +3,11 @@
 .browser-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 160px);
-  margin: -2rem;
+  height: calc(100vh - 220px);
   background: var(--bg-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
 }
 
 /* Empty State */
@@ -17,6 +19,9 @@
   height: 100%;
   padding: 3rem;
   text-align: center;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .browser-empty-state .empty-icon {

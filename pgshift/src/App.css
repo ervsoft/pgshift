@@ -82,10 +82,9 @@ body {
   width: 100%;
 }
 
-/* Browser page needs full width */
+/* Browser page needs more width */
 .app-main:has(.browser-page) {
-  max-width: 100%;
-  padding: 0;
+  max-width: 1800px;
 }
 
 .app-footer {
