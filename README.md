@@ -8,12 +8,12 @@
 
 ## 📥 Downloads
 
-| Platform | Download |
-|----------|----------|
-| **macOS** (Intel/Apple Silicon) | [⬇️ PGShift_0.1.0_x64.dmg](https://github.com/ervsoft/pgshift/releases/latest/download/PGShift_0.1.0_x64.dmg) |
-| **Windows** x64 | [⬇️ PGShift_0.1.0_x64-setup.exe](https://github.com/ervsoft/pgshift/releases/latest/download/PGShift_0.1.0_x64-setup.exe) |
+**[⬇️ Download Latest Release](https://github.com/ervsoft/pgshift/releases)**
 
-> 📦 All releases: [github.com/ervsoft/pgshift/releases](https://github.com/ervsoft/pgshift/releases)
+| Platform | File |
+|----------|------|
+| macOS (Intel/Apple Silicon) | `PGShift_x.x.x_x64.dmg` |
+| Windows x64 | `PGShift_x.x.x_x64-setup.exe` |
 
 ## ✨ Features
 
