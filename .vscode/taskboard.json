@@ -1,6 +1,31 @@
 {
   "version": 1,
-  "tasks": [],
+  "tasks": [
+    {
+      "id": "1eacb640-e1ce-4fe8-968e-77e01aeade42",
+      "title": "NOTE: PostgreSQL doesn't support removing ENUM values easily",
+      "description": "PostgreSQL doesn't support removing ENUM values easily\n\nFile: pgshift/src-tauri/src/diff/diff.rs:201",
+      "status": "Backlog",
+      "labels": [
+        "NOTE"
+      ],
+      "priority": 3,
+      "createdAt": "2026-02-03T13:21:27.973Z",
+      "updatedAt": "2026-02-03T13:21:27.973Z",
+      "relatedFiles": [
+        "pgshift/src-tauri/src/diff/diff.rs"
+      ],
+      "subtasks": [],
+      "history": [
+        {
+          "at": "2026-02-03T13:21:27.973Z",
+          "type": "created",
+          "message": "Task created"
+        }
+      ],
+      "reports": []
+    }
+  ],
   "columns": [
     "Backlog",
     "To Do",

@@ -6,9 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
 
-env:
-  WORKING_DIR: pgshift
-
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -36,7 +33,15 @@ jobs:
         run: pnpm install
 
       - name: Build Tauri App (macOS)
-        run: pnpm tauri build --bundles dmg
+        run: pnpm tauri build --bundles app
+
+      - name: Sign and Create DMG
+        run: |
+          VERSION=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+          mkdir -p src-tauri/target/release/bundle/dmg
+          codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PGShift.app
+          hdiutil create -volname "PGShift" -srcfolder src-tauri/target/release/bundle/macos/PGShift.app -ov -format UDZO "src-tauri/target/release/bundle/dmg/PGShift_${VERSION}_x64.dmg"
+        working-directory: pgshift
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
